@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 import { connectDB } from './db';
 import { GameState } from './models/GameState';
-import { systemPrompt } from './utils/prompts';
+import { ClaudeService } from './services/claude';
 
 dotenv.config();
 
@@ -15,10 +15,11 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Claude client
+// Initialize services
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+const claudeService = new ClaudeService(anthropic);
 
 // Routes
 app.post('/api/game/start', async (req: Request, res: Response) => {
@@ -67,12 +68,7 @@ app.post('/api/game/:gameId/action', async (req: Request, res: Response) => {
 
     let fullResponse = '';
 
-    const stream = await anthropic.messages.stream({
-      model: 'claude-3-opus-20240229',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: gameState.messages.map(({ role, content }) => ({ role, content }))
-    });
+    const stream = await claudeService.streamResponse(gameState.messages);
 
     for await (const message of stream) {
       if (message.type === 'content_block_delta' && message.delta.type === 'text_delta') {

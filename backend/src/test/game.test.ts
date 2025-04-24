@@ -1,12 +1,27 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
 import { GameState } from '../models/GameState';
+import { streamResponse } from '../test/mocks/claude';
+
+vi.mock('../services/claude', () => vi.importActual('../test/mocks/claude'));
 
 describe('Game API', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    streamResponse.mockImplementation(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield {
+          type: 'content_block_delta',
+          delta: { type: 'text_delta', text: 'Hello, world!' }
+        };
+      }
+    }));
+  });
+
   describe('POST /api/game/start', () => {
     it('should start a new game', async () => {
-      const response = await request(app)
+      const response = await (request(app) as any)
         .post('/api/game/start')
         .expect(200);
 
@@ -29,12 +44,12 @@ describe('Game API', () => {
 
     beforeEach(async () => {
       // Start a new game for each test
-      const response = await request(app).post('/api/game/start');
+      const response = await (request(app) as any).post('/api/game/start');
       gameId = response.body.gameId;
     });
 
     it('should process a valid action', async () => {
-      const response = await request(app)
+      const response = await (request(app) as any)
         .post(`/api/game/${gameId}/action`)
         .send({ action: 'look around' })
         .expect(200);
@@ -46,17 +61,19 @@ describe('Game API', () => {
       // Verify game state was updated
       const gameState = await GameState.findById(gameId);
       expect(gameState?.messages).toHaveLength(3); // Initial + user action + assistant response
+
+      expect(streamResponse).toHaveBeenCalled();
     });
 
     it('should return 404 for non-existent game', async () => {
-      await request(app)
+      await (request(app) as any)
         .post('/api/game/0123456789abcdef01234567/action')
         .send({ action: 'look around' })
         .expect(404);
     });
 
     it('should handle invalid action format', async () => {
-      await request(app)
+      await (request(app) as any)
         .post(`/api/game/${gameId}/action`)
         .send({}) // Missing action
         .expect(400);
