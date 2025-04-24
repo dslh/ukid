@@ -8,7 +8,7 @@ import { systemPrompt } from './utils/prompts';
 
 dotenv.config();
 
-const app = express();
+export const app = express();
 const port = process.env.PORT || 3001;
 
 // Middleware
@@ -43,6 +43,14 @@ app.post('/api/game/:gameId/action', async (req: Request, res: Response) => {
   const { gameId } = req.params;
   const { action } = req.body;
 
+  if (typeof gameId !== 'string' || !gameId.match(/^[0-9a-fA-F]{24}$/)) {
+    return res.status(400).json({ error: 'Invalid game ID format' });
+  }
+  
+  if (typeof action !== 'string') {
+    return res.status(400).json({ error: 'Invalid action format' });
+  }
+
   try {
     const gameState = await GameState.findById(gameId);
     if (!gameState) {
@@ -63,7 +71,7 @@ app.post('/api/game/:gameId/action', async (req: Request, res: Response) => {
       model: 'claude-3-opus-20240229',
       max_tokens: 1000,
       system: systemPrompt,
-      messages: gameState.messages
+      messages: gameState.messages.map(({ role, content }) => ({ role, content }))
     });
 
     for await (const message of stream) {
@@ -88,9 +96,11 @@ app.post('/api/game/:gameId/action', async (req: Request, res: Response) => {
   }
 });
 
-// Connect to MongoDB and start server
-connectDB().then(() => {
-  app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// Only start the server if this file is run directly
+if (require.main === module) {
+  connectDB().then(() => {
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
   });
-}); 
+} 
