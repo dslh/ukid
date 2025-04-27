@@ -71,11 +71,15 @@ app.post('/api/game/:gameId/action', async (req: Request, res: Response) => {
     const stream = await claudeService.streamResponse(gameState.messages);
 
     for await (const message of stream) {
-      if (message.type === 'content_block_delta' && message.delta.type === 'text_delta') {
-        const text = message.delta.text;
-        fullResponse += text;
-        // Send each chunk as an SSE event
-        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      if (message.type === 'content_block_delta') {
+        if (message.delta.type === 'text_delta') {
+          const text = message.delta.text;
+          fullResponse += text;
+          // Send each chunk as an SSE event
+          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+        } else if (message.delta.type === 'thinking_delta') {
+          console.log('Claude is thinking:', message.delta);
+        }
       }
     }
 

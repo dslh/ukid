@@ -10,9 +10,13 @@ export class ClaudeService {
 
   async streamResponse(messages: Array<{ role: 'user' | 'assistant'; content: string }>) {
     return this.anthropic.messages.stream({
-      model: 'claude-3-opus-20240229',
-      max_tokens: 1000,
+      model: 'claude-3-7-sonnet-20250219',
+      max_tokens: 20000,
       system: systemPrompt,
+      thinking: {
+        type: 'enabled',
+        budget_tokens: 16000
+      },
       messages: messages.map(({ role, content }) => ({ role, content }))
     });
   }
