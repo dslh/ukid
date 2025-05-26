@@ -6,19 +6,28 @@ import ChatContainer from '@/components/ChatContainer';
 import ConversationList from '@/components/ConversationList';
 import { Message } from '@/lib/claude';
 
-interface Conversation {
+interface ConversationSummary {
   _id: string;
   title: string;
   updatedAt: string;
-  messages: Message[];
+}
+
+interface ConversationDetail {
+  _id: string;
+  title: string;
+  rootMessageId: string;
+  activePath: string[];
+  messages: Record<string, Message>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function ConversationPage() {
   const params = useParams();
   const conversationId = params.id as string;
   
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [currentConversation, setCurrentConversation] = useState<ConversationDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -90,8 +99,7 @@ export default function ConversationPage() {
           </div>
         ) : (
           <ChatContainer 
-            initialMessages={currentConversation?.messages || []} 
-            conversationId={conversationId}
+            initialConversation={currentConversation || undefined}
           />
         )}
       </div>

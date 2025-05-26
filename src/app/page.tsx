@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import ChatContainer from '@/components/ChatContainer';
 import ConversationList from '@/components/ConversationList';
 
-interface Conversation {
+interface ConversationSummary {
   _id: string;
   title: string;
   updatedAt: string;
 }
 
 export default function Home() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
