@@ -1,8 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 export interface Message {
+  messageId?: string;
   role: 'user' | 'assistant';
   content: string;
+  parentId?: string | null;
+  children?: string[];
 }
 
 export async function streamClaudeResponse(
