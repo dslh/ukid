@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
+import Anthropic from '@anthropic-ai/sdk';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -16,66 +15,40 @@ export async function streamClaudeResponse(
     throw new Error('ANTHROPIC_API_KEY is not defined');
   }
 
-  const response = await axios.post(
-    'https://api.anthropic.com/v1/messages',
-    {
-      model: 'claude-3-7-sonnet-20240620',
-      messages,
-      max_tokens: 4096,
-      stream: true,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      responseType: 'stream',
-      signal,
-    }
-  );
-
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  const stream = new ReadableStream({
-    async start(controller) {
-      function onParse(event: ParsedEvent | ReconnectInterval) {
-        if (event.type === 'event') {
-          const data = event.data;
-          
-          // The stream has ended
-          if (data === '[DONE]') {
-            controller.close();
-            return;
-          }
-          
-          try {
-            const json = JSON.parse(data);
-            const text = json.delta?.text || '';
-            const queue = encoder.encode(text);
-            controller.enqueue(queue);
-          } catch (e) {
-            controller.error(e);
-          }
-        }
-      }
-
-      const parser = createParser(onParse);
-      
-      response.data.on('data', (chunk: Buffer) => {
-        parser.feed(decoder.decode(chunk));
-      });
-
-      response.data.on('end', () => {
-        controller.close();
-      });
-
-      response.data.on('error', (err: Error) => {
-        controller.error(err);
-      });
-    },
+  const anthropic = new Anthropic({
+    apiKey,
   });
 
-  return stream;
+  const stream = await anthropic.messages.stream({
+    model: 'claude-3-sonnet-20240229',
+    messages: messages.map(msg => ({
+      role: msg.role,
+      content: msg.content,
+    })),
+    max_tokens: 4096,
+  }, {
+    signal,
+  });
+
+  return new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+
+      try {
+        for await (const chunk of stream) {
+          if (chunk.type === 'content_block_delta' && 'text' in chunk.delta) {
+            const text = chunk.delta.text;
+            controller.enqueue(encoder.encode(text));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        if (signal.aborted) {
+          controller.close();
+        } else {
+          controller.error(error);
+        }
+      }
+    },
+  });
 }

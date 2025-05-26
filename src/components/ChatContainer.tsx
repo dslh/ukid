@@ -19,13 +19,21 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  // Scroll to bottom whenever messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Update messages and conversationId when props change
   useEffect(() => {
-    setMessages(initialMessages);
-    setCurrentConversationId(conversationId);
+    // Only update if the props have actually changed
+    if (JSON.stringify(initialMessages) !== JSON.stringify(messages)) {
+      setMessages(initialMessages);
+    }
+    
+    if (conversationId !== currentConversationId) {
+      setCurrentConversationId(conversationId);
+    }
   }, [initialMessages, conversationId]);
 
   const scrollToBottom = () => {
